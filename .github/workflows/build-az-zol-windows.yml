@@ -1,0 +1,55 @@
+name: Build AZ-ZOL Windows App
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "AZ-ZOL-WINDOWS-APP/**"
+      - ".github/workflows/build-az-zol-windows.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: "x64"
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller MetaTrader5 matplotlib pyttsx3 SpeechRecognition
+
+      - name: Verify application source exists
+        shell: pwsh
+        run: |
+          if (!(Test-Path "AZ-ZOL-WINDOWS-APP/AL_ZOOL_GOLD_SNIPER_AZ_MASTER_BRAIN.py")) {
+            throw "Missing AZ-ZOL-WINDOWS-APP/AL_ZOOL_GOLD_SNIPER_AZ_MASTER_BRAIN.py"
+          }
+
+      - name: Build Windows executable
+        shell: pwsh
+        run: |
+          python -m PyInstaller --noconfirm --clean --windowed --onedir --name AZ-ZOL --collect-all MetaTrader5 --collect-all matplotlib AZ-ZOL-WINDOWS-APP/AL_ZOOL_GOLD_SNIPER_AZ_MASTER_BRAIN.py
+
+      - name: Package installer-ready application folder
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "dist/AZ-ZOL/*" -DestinationPath "AZ-ZOL-Windows-App.zip" -Force
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: AZ-ZOL-Windows-App
+          path: AZ-ZOL-Windows-App.zip
+          if-no-files-found: error
+          retention-days: 14
